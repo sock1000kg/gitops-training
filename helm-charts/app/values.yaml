@@ -20,7 +20,7 @@ sealedSecret:
 # components:
 #   api:                                  # tên component -> hậu tố tài nguyên <release>-api
 #     image:
-#       repository: harbor.viettel.vn/library/java-demo
+#       repository: docker.io/ongtungduong/java-demo
 #       tag: "1.0.0"
 #       pullPolicy: IfNotPresent
 #     replicaCount: 2
@@ -41,7 +41,7 @@ sealedSecret:
 #       hostnames: ["api.example.com"]
 #       pathPrefixes: ["/"]
 #   worker:                               # component không có port -> chỉ Deployment
-#     image: { repository: harbor.viettel.vn/library/py-demo, tag: "1.0.0" }
+#     image: { repository: docker.io/ongtungduong/py-demo, tag: "1.0.0" }
 #     replicaCount: 3
 #     env: { QUEUE: orders }
 components: {}
