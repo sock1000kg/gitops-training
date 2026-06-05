@@ -10,6 +10,7 @@ spec:
   sourceRepos:
     - https://bitnami-labs.github.io/sealed-secrets
     - cr.kgateway.dev/kgateway-dev/charts
+    - https://github.com/ongtungduong/gitops-training.git   # manifest shared Gateway
   destinations:
     - server: https://kubernetes.default.svc
       namespace: kube-system

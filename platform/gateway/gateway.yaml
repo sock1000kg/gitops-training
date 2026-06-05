@@ -1,0 +1,16 @@
+# Gateway dùng chung cho mọi HTTPRoute (kgateway). Mỗi app chỉ tạo HTTPRoute trỏ vào đây.
+# allowedRoutes.from: All -> route ở namespace project khác vẫn attach được (parentRef cross-ns).
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: shared-gw
+  namespace: kgateway-system
+spec:
+  gatewayClassName: kgateway        # GatewayClass do kgateway cài
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All

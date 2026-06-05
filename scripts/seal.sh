@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sinh ciphertext cho values.yaml bằng kubeseal (scope strict mặc định).
 # Dùng: ./scripts/seal.sh <namespace> <secret-name> KEY=VALUE [KEY=VALUE...]
-# Ví dụ: ./scripts/seal.sh mention-mate-dev mention-mate-gateway-secret DB_PASSWORD=s3cr3t API_KEY=abc
+# Ví dụ: ./scripts/seal.sh mention-mate-dev mention-mate-mention-mate-app-dev-secret DB_PASSWORD=s3cr3t API_KEY=abc
 set -euo pipefail
 NS="${1:?namespace}"; NAME="${2:?secret name}"; shift 2
 ARGS=(); for kv in "$@"; do ARGS+=(--from-literal="$kv"); done

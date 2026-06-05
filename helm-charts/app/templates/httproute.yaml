@@ -10,7 +10,7 @@ metadata:
     {{- include "app.labels" $ | nindent 4 }}
     app.kubernetes.io/component: {{ $name }}
 spec:
-  # Gateway dùng chung (thường ở namespace khác -> cần ReferenceGrant nếu cross-namespace)
+  # Gateway dùng chung (khác namespace) — Gateway phải mở allowedRoutes.namespaces (from: All/Selector)
   parentRefs:
     - name: {{ $.Values.gateway.name }}
       namespace: {{ $.Values.gateway.namespace }}

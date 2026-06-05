@@ -1,85 +1,84 @@
-# gitops-training — Deployment repo
+# gitops-training
 
-Repo GitOps quản lý **nhiều project**, mỗi project **1 branch** (branch-based); trong mỗi
-project mỗi **env là 1 directory** (directory-based). Application/ApplicationSet đều khai báo
-trong Git. Có **1 base chart DUY NHẤT** `helm-charts/app` (không version, không OCI); mỗi env
-chỉ cần 1 `values.yaml`.
+Lab GitOps trên ArgoCD: **App-of-Apps + ApplicationSet**, multi-source, **1 base Helm chart dùng chung**.
+Một repo; mỗi project là 1 branch (branch-based), mỗi env là 1 directory (directory-based).
 
-## Layout branch
+## Cấu trúc
 
-| Branch | Nội dung |
-|--------|----------|
-| `main` | bootstrap (`root-application.yaml`, `bootstrap/`) + base chart `helm-charts/app/` |
-| `project-mention-mate` | `apps/mention-mate-gateway`, `apps/mention-mate-processor` — overlay dev/staging/prod |
-| `project-birdnet-market` | `apps/birdnet-market-service`, `apps/birdnet-market-pipeline` — overlay dev/staging/prod |
+```
+main (branch hạ tầng)
+├── root-application.yaml      # App-of-Apps gốc — apply tay 1 lần
+├── bootstrap/
+│   ├── appprojects/           # AppProject: platform, birdnet-market, mention-mate
+│   ├── appsets/               # ApplicationSet: platform, all-projects
+│   └── shared-gateway-app.yaml
+├── helm-charts/app/           # 1 base chart duy nhất, mọi app dùng chung
+├── platform/gateway/          # Gateway dùng chung (shared-gw)
+└── scripts/seal.sh            # bọc kubeseal
 
-## Bootstrap (1 lệnh duy nhất chạy tay)
+project-<name> (mỗi project 1 branch)
+└── apps/<app>/overlays/<env>/values.yaml
+```
+
+## Bootstrap (1 lệnh tay duy nhất)
 
 ```bash
 kubectl apply -f root-application.yaml
 ```
 
-Chain tự động:
-`root` → `bootstrap/` (recurse) → (wave -2) AppProjects trong `bootstrap/appprojects/`
-→ (wave -1) ApplicationSet `platform` trong `bootstrap/appsets/` (sinh sealed-secrets + kgateway-crds + kgateway)
-→ (wave 0) ApplicationSet `all-projects` trong `bootstrap/appsets/` → quét 2 branch project → sinh
-**12 Application** (2 project × 2 app × 3 env).
+`root` → `bootstrap/` (recurse), theo sync-wave:
+
+| Wave | Thành phần |
+|------|------------|
+| -2 | AppProjects |
+| -1 | appset `platform` → sealed-secrets, kgateway-crds, kgateway |
+| 0  | appset `all-projects` → quét branch project, sinh 1 Application / (app, env) |
+| 1  | `shared-gateway` → Gateway `shared-gw` (kgateway-system) |
+
+| Project (branch) | Apps | Application |
+|---|---|---|
+| birdnet-market | `birdnet-market-frontend`, `birdnet-market-backend` | 2 × 3 env = 6 |
+| mention-mate | `mention-mate-app` (backend + worker) | 1 × 3 env = 3 |
+
+→ tổng **9 Application**, mỗi cái = `helm-charts/app` (từ `main`) + `values.yaml` của env đó.
+
+## Base chart `app`
+
+1 chart cho mọi app, render theo map `components`:
+
+- mỗi component → 1 **Deployment** (+ **Service** nếu có `port`, + **ConfigMap** nếu có `config`, + **HTTPRoute** nếu `httpRoute.enabled`)
+- 1 component = single-deployment; nhiều component = multi-deployment
+- **1 SealedSecret** dùng chung cho cả release (`envFrom` vào mọi component)
+- HTTPRoute gắn vào **Gateway dùng chung** `shared-gw` (kgateway-system)
+
+Cấu trúc `components` đầy đủ: xem `helm-charts/app/values.yaml`.
+
+## Overlay env (trên branch project)
 
 ```
-helm-charts/
-└── app/           # 1 chart duy nhất: configmap, sealedsecret, deployment, service, httproute
-bootstrap/
-├── appprojects/   # AppProject: platform, mention-mate, birdnet-market
-└── appsets/       # ApplicationSet: platform (nền tảng), projects (all-projects)
+apps/<app>/overlays/<env>/values.yaml   # components, config, sealedSecret.encryptedData
 ```
 
-## Platform components
+`all-projects` dùng git **directories generator** quét `apps/*/overlays/*` (không cần `config.yaml`).
+Application = `{project}-{app}-{env}`, namespace = `{project}-{env}`. Chart luôn lấy từ `main`;
+khác biệt app/env nằm hết trong `values.yaml` ⇒ **promotion = sửa `values.yaml`** của env đó.
 
-Do ApplicationSet `platform` (`bootstrap/appsets/platform.yaml`, list generator) quản lý:
+## SealedSecret
 
-| Component | Nguồn | Namespace |
-|-----------|-------|-----------|
-| sealed-secrets-controller | Helm `bitnami-labs.github.io/sealed-secrets` | `kube-system` |
-| kgateway-crds + kgateway | Helm OCI `cr.kgateway.dev/kgateway-dev/charts` | `kgateway-system` |
-
-## Base chart `app` — 1 chart cho mọi app
-
-Render theo `components` (map). **Mỗi component = 1 Deployment**, kèm Service (nếu có `port`),
-ConfigMap (nếu có `config`), HTTPRoute (nếu `httpRoute.enabled`). 1 component → single-deploy;
-nhiều component → multi-deploy. SealedSecret là **1 cái dùng chung** cho cả release (envFrom vào
-mọi component). HTTPRoute trỏ tới **Gateway dùng chung** (`gateway.name`/`gateway.namespace`).
-Xem cấu trúc đầy đủ trong `helm-charts/app/values.yaml`.
-
-## Mỗi env = 1 directory chứa 1 file
-
-```
-apps/<app>/overlays/<env>/
-└── values.yaml     # Helm values override theo env (components, config, sealedSecret.encryptedData)
-```
-
-ApplicationSet dùng git **directories generator** quét `apps/*/overlays/*` để phát hiện env
-(không cần `config.yaml`). Chart luôn là `helm-charts/app` trên `main`; khác biệt giữa env/app
-nằm hết trong `values.yaml` ⇒ promotion = sửa `values.yaml` của env tương ứng.
-
-## SealedSecret — QUAN TRỌNG
-
-`encryptedData` trong các `values.yaml` ở repo này là **PLACEHOLDER**, KHÔNG decrypt được.
-Sinh ciphertext thật bằng kubeseal (gắn với public key của controller trong cluster):
+`encryptedData` trong repo là **PLACEHOLDER** (không decrypt được). Sinh ciphertext thật bằng kubeseal —
+scope `strict` gắn ciphertext theo đúng **name + namespace**, nên tên secret phải khớp `<release>-secret`:
 
 ```bash
-./scripts/seal.sh mention-mate-dev mention-mate-gateway-secret DB_PASSWORD=... API_KEY=...
-# copy block encryptedData vào values.yaml tương ứng, commit, push.
+# release = <project>-<app>-<env> ; secret = <release>-secret ; ns = <project>-<env>
+./scripts/seal.sh mention-mate-dev mention-mate-mention-mate-app-dev-secret DB_PASSWORD=... API_KEY=...
+# dán block encryptedData trả về vào values.yaml của env đó, commit, push.
 ```
 
-## Đăng ký repo cho ArgoCD (on-prem)
+## Đăng ký repo cho ArgoCD
 
 ```bash
-# Git repo (vừa cấp base chart, vừa cấp values)
 argocd repo add https://github.com/ongtungduong/gitops-training.git --username '<user>' --password '<PAT>'
-# Platform: kgateway OCI Helm registry (sealed-secrets dùng Helm HTTP, không cần)
-argocd repo add cr.kgateway.dev/kgateway-dev/charts --type helm --enable-oci
+argocd repo add cr.kgateway.dev/kgateway-dev/charts --type helm --enable-oci   # cho kgateway
 ```
 
-- repo-server cần **egress** tới GitHub, `cr.kgateway.dev`, `bitnami-labs.github.io` (air-gapped thì mirror nội bộ).
-- ArgoCD **>= 3.1** mới có native OCI Helm (cho kgateway); lab pin dòng **3.3.x**.
-- Biến path generator (`.path.path`, `.path.basename`, `.path.segments`) chỉ dùng khi `goTemplate: true`.
+repo-server cần egress tới GitHub, `cr.kgateway.dev`, `bitnami-labs.github.io`. ArgoCD **≥ 3.1** (native OCI Helm); lab pin **3.3.x**.
