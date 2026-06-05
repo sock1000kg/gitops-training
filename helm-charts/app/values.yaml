@@ -1,6 +1,6 @@
 # Gateway dùng chung (kgateway) mà các HTTPRoute trỏ tới qua parentRefs.
 gateway:
-  name: shared-gateway
+  name: shared-gw
   namespace: kgateway-system
   sectionName: ""          # tên listener (tuỳ chọn)
 
