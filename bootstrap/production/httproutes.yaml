@@ -1,18 +1,18 @@
-# Phơi bày ArgoCD UI qua gateway riêng (argocd-gw) + bật server.insecure. ServerSideApply
-# để merge an toàn vào argocd-cmd-params-cm (không clobber key khác).
+# Quản lý các HTTPRoute đứng riêng (không do chart app sinh) — đều trỏ shared-gw.
+# Hiện có: route ArgoCD UI. Thêm route mới = thêm manifest vào platform/httproutes/.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: argocd-expose
+  name: httproutes
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   project: platform
   source:
     repoURL: https://github.com/ongtungduong/gitops-training.git
     targetRevision: main
-    path: platform/argocd
+    path: platform/httproutes
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
@@ -22,4 +22,3 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true

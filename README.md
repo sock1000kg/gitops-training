@@ -17,8 +17,8 @@ root-<tier> (App, recurse:false → chỉ đọc 5 file cấp 1 của bootstrap/
 ├── platform       (appset) ──► sealed-secrets, kgateway-crds, kgateway     (wave -1)
 ├── all-projects   (appset) ──► App/projectset-<proj> ──► appset của project (wave 0)
 │                                   └─► workload Application (theo env của tier)
-├── shared-gateway (App)    ──► Gateway shared-gw (apps, *.duongot.work)     (wave 1)
-└── argocd-expose  (App)    ──► server.insecure + argocd-gw + route argocd  (wave 1)
+├── shared-gateway (App)    ──► Gateway shared-gw (*.duongot.work, dùng chung) (wave 1)
+└── httproutes     (App)    ──► HTTPRoute đứng riêng (vd argocd) ──► shared-gw  (wave 2)
 ```
 
 > ApplicationSet chỉ sinh được **Application**, nên "appset quản lý AppProject / quản lý appset con"
@@ -36,12 +36,12 @@ main
 │   │   ├── platform.yaml             (appset)         │ (root đọc, recurse:false)
 │   │   ├── all-projects.yaml         (appset)         │
 │   │   ├── shared-gateway.yaml       (App)            │
-│   │   ├── argocd-expose.yaml        (App)            ┘
+│   │   ├── httproutes.yaml           (App)            ┘
 │   │   ├── appprojects/{platform,birdnet-market,mention-mate}/appproject.yaml
 │   │   └── project-appsets/{birdnet-market,mention-mate}/applicationset.yaml
 │   └── production/ ...
-├── platform/gateway/               # shared-gw (apps): GatewayParameters + Gateway *.duongot.work
-├── platform/argocd/                # argocd-gw + HTTPRoute argocd.duongot.work + server.insecure
+├── platform/gateway/               # shared-gw DÙNG CHUNG: GatewayParameters + Gateway *.duongot.work
+├── platform/httproutes/            # HTTPRoute đứng riêng (argocd...) trỏ shared-gw
 ├── helm-charts/app/                 # 1 base chart duy nhất
 └── apps/<project>/<app>/overlays/<env>/values.yaml
 ```
@@ -99,13 +99,15 @@ argocd repo add cr.kgateway.dev/kgateway-dev/charts --type helm --enable-oci
 
 ArgoCD **≥ 3.1** (native OCI Helm); lab pin **3.3.x**.
 
-### Phơi bày ArgoCD UI (argocd-expose)
+### HTTPRoute đứng riêng (App `httproutes`)
 
-`bootstrap/<tier>/argocd-expose.yaml` GitOps hoá `platform/argocd/`: bật `server.insecure`, tạo
-`argocd-gw` (NodePort) + HTTPRoute `argocd.duongot.work` → `argocd-server`. Dùng gateway RIÊNG,
-tách khỏi `shared-gw` của app.
+`bootstrap/<tier>/httproutes.yaml` GitOps hoá `platform/httproutes/` — các HTTPRoute **không** do chart
+`app` sinh, đều trỏ vào gateway **dùng chung** `shared-gw`. Hiện có route ArgoCD UI
+(`argocd.duongot.work` → `argocd-server`). Thêm route mới = thêm 1 manifest vào `platform/httproutes/`.
 
-- **Lưu ý:** `argocd-server` đọc `server.insecure` lúc khởi động → cần **restart 1 lần** để có hiệu lực
-  (`kubectl -n argocd rollout restart deploy argocd-server`), hoặc cài ArgoCD sẵn với `--insecure`.
-  GitOps không tự restart pod đọc config lúc start.
-- Lấy NodePort: `kubectl -n kgateway-system get svc -l gateway.networking.k8s.io/gateway-name=argocd-gw -o jsonpath='{.items[0].spec.ports[?(@.port==80)].nodePort}'`, rồi map DNS `argocd.duongot.work` → `nodeIP:nodePort`.
+- **`server.insecure` đặt THỦ CÔNG** (không GitOps), vì argocd-server đọc param lúc khởi động và cần restart:
+  ```bash
+  kubectl -n argocd patch configmap argocd-cmd-params-cm --type merge -p '{"data":{"server.insecure":"true"}}'
+  kubectl -n argocd rollout restart deploy argocd-server
+  ```
+- Vào ArgoCD qua NodePort của `shared-gw`: `kubectl -n kgateway-system get svc -l gateway.networking.k8s.io/gateway-name=shared-gw -o jsonpath='{.items[0].spec.ports[?(@.port==80)].nodePort}'`, rồi map DNS `argocd.duongot.work` → `nodeIP:nodePort`.
