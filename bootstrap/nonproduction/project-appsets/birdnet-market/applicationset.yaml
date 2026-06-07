@@ -15,28 +15,29 @@ spec:
         directories:
           - path: "apps/birdnet-market/*/overlays/dev"
           - path: "apps/birdnet-market/*/overlays/staging"
+          - path: "apps/birdnet-market/*/overlays/uat"
   template:
     metadata:
-      name: '{{ index .path.segments 1 }}-{{ index .path.segments 2 }}-{{ .path.basename }}'
+      name: "{{ index .path.segments 1 }}-{{ index .path.segments 2 }}-{{ .path.basename }}"
       labels:
-        project: '{{ index .path.segments 1 }}'
-        app: '{{ index .path.segments 2 }}'
-        env: '{{ .path.basename }}'
+        project: "{{ index .path.segments 1 }}"
+        app: "{{ index .path.segments 2 }}"
+        env: "{{ .path.basename }}"
     spec:
-      project: '{{ index .path.segments 1 }}'
+      project: "{{ index .path.segments 1 }}"
       sources:
         - repoURL: https://github.com/sock1000kg/gitops-training.git
           targetRevision: main
-          path: 'helm-charts/app'
+          path: "helm-charts/app"
           helm:
             valueFiles:
-              - '$values/{{ .path.path }}/values.yaml'
+              - "$values/{{ .path.path }}/values.yaml"
         - repoURL: https://github.com/sock1000kg/gitops-training.git
           targetRevision: main
           ref: values
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{ index .path.segments 1 }}-{{ .path.basename }}'
+        namespace: "{{ index .path.segments 1 }}-{{ .path.basename }}"
       syncPolicy:
         automated:
           prune: true
