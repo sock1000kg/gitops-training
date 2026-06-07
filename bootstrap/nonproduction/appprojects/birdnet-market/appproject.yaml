@@ -6,7 +6,7 @@ metadata:
 spec:
   description: Project birdnet-market (apps/birdnet-market/)
   sourceRepos:
-    - https://github.com/ongtungduong/gitops-training.git
+    - https://github.com/sock1000kg/gitops-training.git
   destinations:
     - server: https://kubernetes.default.svc
       namespace: "birdnet-market-*"

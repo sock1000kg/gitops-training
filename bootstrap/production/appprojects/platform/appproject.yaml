@@ -8,7 +8,7 @@ spec:
   sourceRepos:
     - https://bitnami-labs.github.io/sealed-secrets
     - cr.kgateway.dev/kgateway-dev/charts
-    - https://github.com/ongtungduong/gitops-training.git
+    - https://github.com/sock1000kg/gitops-training.git
   destinations:
     - server: https://kubernetes.default.svc
       namespace: kube-system

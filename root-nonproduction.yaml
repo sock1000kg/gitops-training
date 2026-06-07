@@ -8,7 +8,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/ongtungduong/gitops-training.git
+    repoURL: https://github.com/sock1000kg/gitops-training.git
     targetRevision: main
     path: bootstrap/nonproduction
     directory:
