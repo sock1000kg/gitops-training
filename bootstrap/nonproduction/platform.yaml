@@ -44,6 +44,7 @@ spec:
                       Match         kube.*
                       Host          192.168.122.197
                       Port          9200
+                      Suppress_Type_Name On
   template:
     metadata:
       name: "{{.name}}"
