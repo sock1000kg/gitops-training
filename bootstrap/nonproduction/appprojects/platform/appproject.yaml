@@ -4,18 +4,21 @@ metadata:
   name: platform
   namespace: argocd
 spec:
-  description: Platform components (sealed-secrets, kgateway, shared gateway)
+  description: Platform components (sealed-secrets, kgateway, shared gateway, logging)
   sourceRepos:
     - https://bitnami-labs.github.io/sealed-secrets
     - cr.kgateway.dev/kgateway-dev/charts
     - https://github.com/sock1000kg/gitops-training.git
+    - https://fluent.github.io/helm-charts # Authorized Fluent Bit Repo
   destinations:
     - server: https://kubernetes.default.svc
       namespace: kube-system
     - server: https://kubernetes.default.svc
       namespace: kgateway-system
     - server: https://kubernetes.default.svc
-      namespace: argocd            # HTTPRoute expose ArgoCD qua shared gateway
+      namespace: argocd
+    - server: https://kubernetes.default.svc
+      namespace: logging # Authorized Logging Namespace
   clusterResourceWhitelist:
     - group: "*"
       kind: "*"
