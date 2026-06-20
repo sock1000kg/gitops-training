@@ -29,25 +29,41 @@ spec:
             namespace: kgateway-system
             wave: "-1"
             helmValues: ""
+          # Add this element to the 'elements' list under 'generators':
+          - name: fluent-bit
+            repoURL: https://fluent.github.io/helm-charts
+            chart: fluent-bit
+            version: 0.43.0
+            namespace: logging
+            wave: "1"
+            helmValues: |
+              config:
+                outputs: |
+                  [OUTPUT]
+                      Name          opensearch
+                      Match         kube.*
+                      Host          192.168.122.197
+                      Port          9200
+                      Suppress_TypeName On
   template:
     metadata:
-      name: '{{.name}}'
+      name: "{{.name}}"
       labels:
-        platform-component: '{{.name}}'
+        platform-component: "{{.name}}"
       annotations:
-        argocd.argoproj.io/sync-wave: '{{.wave}}'
+        argocd.argoproj.io/sync-wave: "{{.wave}}"
     spec:
       project: platform
       source:
-        repoURL: '{{.repoURL}}'
-        chart: '{{.chart}}'
-        targetRevision: '{{.version}}'
+        repoURL: "{{.repoURL}}"
+        chart: "{{.chart}}"
+        targetRevision: "{{.version}}"
         helm:
           skipCrds: false
-          values: '{{.helmValues}}'
+          values: "{{.helmValues}}"
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{.namespace}}'
+        namespace: "{{.namespace}}"
       syncPolicy:
         automated:
           prune: true
